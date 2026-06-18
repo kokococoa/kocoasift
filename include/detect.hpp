@@ -14,7 +14,8 @@ public:
     void process(const cv::Mat& image);
     
     // Variable calls
-    std::vector<std::vector<cv::Mat>> getAllGaussianPyramid() const;
+    const std::vector<std::vector<cv::Mat>>& getAllGaussianPyramid() const;
+    const std::vector<std::vector<cv::Mat>>& getAllDoGPyramid() const;
 
 private:
     // Configure parameters
@@ -42,9 +43,8 @@ private:
 
     // Functions
     void createImagePyramids(const cv::Mat& image);
-    void createGaussianLayers();
-    void createDoGLayers();
-    cv::Mat convolute(cv::Mat& input, const std::vector<float>& kernel, int kernel_size);
+    void createGaussianLayersAndDoG();
+    cv::Mat convolute(const cv::Mat& input, const std::vector<float>& kernel, int kernel_size);
 
 };
 

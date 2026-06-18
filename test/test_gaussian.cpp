@@ -1,6 +1,8 @@
 #include "common.hpp"
 #include "frontend.hpp"
 
+#include <filesystem>
+
 int main(int argc, char** argv) {
     std::vector<bool> test_results;
 
@@ -49,20 +51,23 @@ int main(int argc, char** argv) {
     std::cout << "  nLayers: " << app.parameters().nLayers() << std::endl;
     std::cout << "  sigma: " << app.parameters().sigma() << std::endl;
 
-    // Get all images
-    auto all_images =app.detector().getAllGaussianPyramid();
-    // Save test image
-    cv::imwrite("test/gaussian/test_image.png", test_image);
-    // Save all images to disk for inspection
-    for (size_t o = 0; o < all_images.size(); ++o) {
-        for (size_t l = 0; l < all_images[o].size(); ++l) {
-            std::string filename = "test/gaussian/gaussian_pyramid_octave_" + std::to_string(o) + "_layer_" + std::to_string(l) + ".png";
+    const std::string output_dir = "test/dog";
+    std::filesystem::create_directories(output_dir);
+
+    const auto& dog_images = app.detector().getAllDoGPyramid();
+    cv::imwrite(output_dir + "/test_image.png", test_image);
+
+    for (size_t o = 0; o < dog_images.size(); ++o) {
+        for (size_t l = 0; l < dog_images[o].size(); ++l) {
+            const std::string filename = output_dir + "/dog_pyramid_octave_" +
+                                         std::to_string(o) + "_layer_" +
+                                         std::to_string(l) + ".png";
             cv::Mat image_to_save;
-            all_images[o][l].convertTo(image_to_save, CV_8UC1, 1.0);  // Convert to 8-bit for saving
+            cv::normalize(dog_images[o][l], image_to_save, 0, 255, cv::NORM_MINMAX, CV_8UC1);
             cv::imwrite(filename, image_to_save);
         }
     }
-    std::cout << "Saved all Gaussian pyramid images to disk at test/gaussian/" << std::endl;
+    std::cout << "Saved all DoG pyramid images to disk at " << output_dir << "/" << std::endl;
 
     if (std::all_of(test_results.begin(), test_results.end(), [](bool result) { return result; })) {
         std::cout << "All tests passed successfully." << std::endl;

@@ -91,3 +91,6 @@ enable_testing()
 add_test(NAME test_main COMMAND test_main)
 add_test(NAME test_frontend COMMAND test_frontend)
 add_test(NAME test_gaussian COMMAND test_gaussian)
+set_tests_properties(test_gaussian PROPERTIES
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
