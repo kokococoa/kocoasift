@@ -17,14 +17,17 @@ class KocoaSIFT {
   KocoaSIFT();
   ~KocoaSIFT();
 
-  void configure(int nFeatures = kDefaultNFeatures,
-                  int nOctaves = kDefaultNOctaves,
-                  int nLayers = kDefaultNLayers,
-                  float sigma = kDefaultSigma);
+  void configure(
+        int image_width, int image_height,
+        int nFeatures = kDefaultNFeatures,
+        int nOctaves = kDefaultNOctaves,
+        int nLayers = kDefaultNLayers,
+        float sigma = kDefaultSigma);
 
   void initialize();
-  void run();
+  void process(cv::Mat& image);
   KocoaSIFTParameters& parameters() { return parameters_; }
+  KocoaSIFTDetector& detector() { return *detect_; }
 
  private:
   KocoaSIFTParameters parameters_;

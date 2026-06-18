@@ -1,6 +1,8 @@
 # Manual
 build.sh
 
+*.png
+
 # Prerequisites
 *.d
 

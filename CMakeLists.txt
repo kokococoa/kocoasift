@@ -16,7 +16,7 @@ if(KOCOASIFT_OPENCV_DIR)
 endif()
 
 # ================ Dependencies ================
-find_package(OpenCV REQUIRED COMPONENTS core features2d)
+find_package(OpenCV REQUIRED COMPONENTS core features2d imgcodecs imgproc)
 find_package(CUDAToolkit REQUIRED)
 
 message(STATUS "kocoasift OpenCV version: ${OpenCV_VERSION}")
@@ -28,6 +28,15 @@ message(STATUS "kocoasift CUDA Toolkit root: ${CUDAToolkit_TARGET_DIR}")
 message(STATUS "kocoasift CUDA Toolkit bin dir: ${CUDAToolkit_BIN_DIR}")
 message(STATUS "kocoasift CUDA Toolkit include dirs: ${CUDAToolkit_INCLUDE_DIRS}")
 message(STATUS "kocoasift CUDA Toolkit library dir: ${CUDAToolkit_LIBRARY_DIR}")
+
+
+set(LIBS 
+  opencv_core
+  opencv_features2d
+  opencv_imgcodecs
+  opencv_imgproc
+  CUDA::cudart
+)
 
 # ================ KocoaSIFT Source Library ================
 add_library(kocoasift
@@ -44,9 +53,7 @@ target_include_directories(kocoasift
 
 target_link_libraries(kocoasift
   PUBLIC
-    opencv_core
-    opencv_features2d
-    CUDA::cudart
+    ${LIBS}
 )
 
 target_compile_features(kocoasift PUBLIC cxx_std_17)
@@ -58,6 +65,7 @@ add_executable(test_main
 target_link_libraries(test_main
   PRIVATE
     kocoasift
+    ${LIBS}
 )
 
 add_executable(test_frontend
@@ -66,9 +74,20 @@ add_executable(test_frontend
 target_link_libraries(test_frontend
   PRIVATE
     kocoasift
+    ${LIBS}
+)
+
+add_executable(test_gaussian
+  test/test_gaussian.cpp
+)
+target_link_libraries(test_gaussian
+  PRIVATE
+    kocoasift
+    ${LIBS}
 )
 
 # ================ Testing ================
 enable_testing()
 add_test(NAME test_main COMMAND test_main)
 add_test(NAME test_frontend COMMAND test_frontend)
+add_test(NAME test_gaussian COMMAND test_gaussian)

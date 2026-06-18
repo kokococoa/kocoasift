@@ -8,7 +8,7 @@ int main(int argc, char** argv) {
 
     kocoasift::KocoaSIFT app;
     try {
-        app.configure(600, 4, 3, 1.60f);
+        app.configure(640, 400, 600, 5, 3, 1.60f);
         app.initialize();
         test_results.push_back(true);  // If no exception, test passed
     }
@@ -21,8 +21,9 @@ int main(int argc, char** argv) {
         test_results.push_back(false);
     }
 
-
     std::cout << "KocoaSIFT initialized with parameters:" << std::endl;
+    std::cout << "  image_width: " << app.parameters().imageWidth() << std::endl;
+    std::cout << "  image_height: " << app.parameters().imageHeight() << std::endl;
     std::cout << "  nFeatures: " << app.parameters().nFeatures() << std::endl;
     std::cout << "  nOctaves: " << app.parameters().nOctaves() << std::endl;
     std::cout << "  nLayers: " << app.parameters().nLayers() << std::endl;

@@ -13,6 +13,41 @@ KocoaSIFTDetector::KocoaSIFTDetector(KocoaSIFTParameters* parameters)
     this->octaves = parameters->nOctaves();
     this->gaussian_layers = parameters->nLayers()+3; // +3 for usable DoG layers
 
+    // Precompute octave resolution
+    this->image_width_ = parameters->imageWidth();
+    this->image_height_ = parameters->imageHeight();
+    octave_resolutions.resize(octaves);
+    for (int o = 0; o < octaves; ++o) {
+        int width = image_width_ >> o;
+        int height = image_height_ >> o;
+        octave_resolutions[o] = {width, height};
+    }
+
+    // Allocate storage for scale pyramid
+    scale_pyramid.resize(octaves);
+    for (int o = 0; o < octaves; ++o) {
+        int width = octave_resolutions[o][0];
+        int height = octave_resolutions[o][1];
+        scale_pyramid[o] = cv::Mat(height, width, CV_8UC1); // Grayscale image
+    }
+
+    // Allocate storage for Gaussian and DoG pyramids
+    gaussian_pyramid.resize(octaves);
+    gaussian_pyramid_dog.resize(octaves);
+    // Allocate mat sizes for each octave and layer
+    for (int o = 0; o < octaves; ++o) {
+        int width = octave_resolutions[o][0];
+        int height = octave_resolutions[o][1];
+        gaussian_pyramid[o].resize(gaussian_layers);
+        gaussian_pyramid_dog[o].resize(gaussian_layers - 1); // DoG has 1 fewer layers than Gaussian
+        for (int l = 0; l < gaussian_layers; ++l) {
+            gaussian_pyramid[o][l].create(height, width, CV_32FC1);
+            if (l < gaussian_layers - 1) {
+                gaussian_pyramid_dog[o][l].create(height, width, CV_32FC1);
+            }
+        }
+    }
+
     // Resize kernel storage
     layer_sigmas.resize(gaussian_layers);
     layer_kernel_sizes.resize(gaussian_layers);
@@ -77,14 +112,6 @@ KocoaSIFTDetector::KocoaSIFTDetector(KocoaSIFTParameters* parameters)
         }
     }
 
-    // Allocate Gaussian and DoG pyramids
-    gaussian_pyramid.resize(octaves);
-    dog_pyramid.resize(octaves);
-    for (int o = 0; o < octaves; ++o) {
-        gaussian_pyramid[o].resize(gaussian_layers);
-        dog_pyramid[o].resize(gaussian_layers - 2); // DoG has 2 fewer layers than Gaussian
-    }
-
     // Check kernel sums for each layer
     bool sum_check_passed = true;
     for (int i = 0; i < gaussian_layers; ++i) {
@@ -128,8 +155,81 @@ KocoaSIFTDetector::KocoaSIFTDetector(KocoaSIFTParameters* parameters)
 KocoaSIFTDetector::~KocoaSIFTDetector() = default;
 
 void KocoaSIFTDetector::process(const cv::Mat& image) {
-    // Placeholder for processing the image
-    // This function will implement the SIFT detection algorithm
+    image_ = image.clone();
+        if (image.channels() == 3) {
+        cv::cvtColor(image, grey_image, cv::COLOR_BGR2GRAY);
+    } else if (image.channels() == 4) {
+        cv::cvtColor(image, grey_image, cv::COLOR_BGRA2GRAY);
+    } else {
+        grey_image = image.clone();
+    }
+    // & First, create image pyramid
+    createImagePyramids(image);
+    createGaussianLayers();
+}
+
+void KocoaSIFTDetector::createImagePyramids(const cv::Mat& image) {
+    // Create scale pyramid
+    for (int o = 0; o < octaves; ++o) {
+        int width = octave_resolutions[o][0];
+        int height = octave_resolutions[o][1];
+        cv::Mat resized_image;
+        cv::resize(grey_image, resized_image, cv::Size(width, height), 0, 0, cv::INTER_LINEAR);
+        scale_pyramid[o] = resized_image.clone();
+    }
+}
+
+cv::Mat KocoaSIFTDetector::convolute(cv::Mat& input, const std::vector<float>& kernel, int kernel_size) {
+    // Input image should be CV_8UC1
+    // Output image will be CV_32FC1
+    cv::Mat output = cv::Mat::zeros(input.size(), CV_32FC1);
+    cv::Mat temp = cv::Mat::zeros(input.size(), CV_32FC1);
+
+    // Convolute 1-D kernel in x and y directions
+    int image_width = input.cols;
+    int image_height = input.rows;
+    for (int y = 0; y < image_height; ++y) {
+        for (int x = 0; x < image_width; ++x) {
+            float sum = 0.0f;
+            for (int k = 0; k < kernel_size; ++k) {
+                int offset = k - kernel_size / 2;
+                int x_index = std::clamp(x + offset, 0, image_width - 1);
+                sum += input.at<uint8_t>(y, x_index) * kernel[k];
+            }
+            temp.at<float>(y, x) = sum;
+        }
+    }
+    for (int y = 0; y < image_height; ++y) {
+        for (int x = 0; x < image_width; ++x) {
+            float sum = 0.0f;
+            for (int k = 0; k < kernel_size; ++k) {
+                int offset = k - kernel_size / 2;
+                int y_index = std::clamp(y + offset, 0, image_height - 1);
+                sum += temp.at<float>(y_index, x) * kernel[k];
+            }
+            output.at<float>(y, x) = sum;
+        }
+    }
+    return output;
+}
+
+void KocoaSIFTDetector::createGaussianLayers() {
+    // Create Gaussian layers for each octave
+    for (int o = 0; o < octaves; ++o) {
+        cv::Mat& input_image = scale_pyramid[o];
+        for (int l = 0; l < gaussian_layers; ++l) {
+            cv::Mat& output_image = gaussian_pyramid[o][l];
+            int ksize = layer_kernel_sizes[l];
+            const std::vector<float>& kernel = layer_kernels[l];
+
+            // Apply convolution using the precomputed kernel
+            output_image = convolute(input_image, kernel, ksize);
+        }
+    }
+}
+
+std::vector<std::vector<cv::Mat>> KocoaSIFTDetector::getAllGaussianPyramid() const {
+    return gaussian_pyramid;
 }
 
 }  // namespace kocoasift
