@@ -31,20 +31,15 @@ KocoaSIFTDetector::KocoaSIFTDetector(KocoaSIFTParameters* parameters)
         scale_pyramid[o] = cv::Mat(height, width, CV_8UC1); // Grayscale image
     }
 
-    // Allocate storage for Gaussian and DoG pyramids
-    gaussian_pyramid.resize(octaves);
+    // Allocate storage for DoG pyramid
     gaussian_pyramid_dog.resize(octaves);
     // Allocate mat sizes for each octave and layer
     for (int o = 0; o < octaves; ++o) {
         int width = octave_resolutions[o][0];
         int height = octave_resolutions[o][1];
-        gaussian_pyramid[o].resize(gaussian_layers);
         gaussian_pyramid_dog[o].resize(gaussian_layers - 1); // DoG has 1 fewer layers than Gaussian
-        for (int l = 0; l < gaussian_layers; ++l) {
-            gaussian_pyramid[o][l].create(height, width, CV_32FC1);
-            if (l < gaussian_layers - 1) {
-                gaussian_pyramid_dog[o][l].create(height, width, CV_32FC1);
-            }
+        for (int l = 0; l < gaussian_layers - 1; ++l) {
+            gaussian_pyramid_dog[o][l].create(height, width, CV_32FC1);
         }
     }
 
@@ -239,28 +234,23 @@ void KocoaSIFTDetector::createGaussianLayersAndDoG() {
     for (int o = 0; o < octaves; ++o) {
         cv::Mat input_float;
         scale_pyramid[o].convertTo(input_float, CV_32FC1, 1.0 / 255.0);
-        const cv::Mat* previous_layer = &input_float;
+        cv::Mat previous_layer = input_float;
 
         for (int l = 0; l < gaussian_layers; ++l) {
-            cv::Mat& output_image = gaussian_pyramid[o][l];
             int ksize = layer_kernel_sizes[l];
             const std::vector<float>& kernel = layer_kernels[l];
 
             // Apply convolution using the precomputed kernel
-            output_image = convolute(*previous_layer, kernel, ksize);
+            cv::Mat output_image = convolute(previous_layer, kernel, ksize);
             
             // Compute DoG if not the first layer
             if (l > 0) {
                 cv::Mat& dog_image = gaussian_pyramid_dog[o][l - 1];
-                cv::subtract(output_image, *previous_layer, dog_image);
+                cv::subtract(output_image, previous_layer, dog_image);
             }
-            previous_layer = &output_image;
+            previous_layer = output_image;
         }
     }
-}
-
-const std::vector<std::vector<cv::Mat>>& KocoaSIFTDetector::getAllGaussianPyramid() const {
-    return gaussian_pyramid;
 }
 
 const std::vector<std::vector<cv::Mat>>& KocoaSIFTDetector::getAllDoGPyramid() const {
