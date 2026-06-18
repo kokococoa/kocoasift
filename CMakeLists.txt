@@ -15,6 +15,7 @@ if(KOCOASIFT_OPENCV_DIR)
   set(OpenCV_DIR "${KOCOASIFT_OPENCV_DIR}" CACHE PATH "OpenCV package directory" FORCE)
 endif()
 
+# ================ Dependencies ================
 find_package(OpenCV REQUIRED COMPONENTS core features2d)
 find_package(CUDAToolkit REQUIRED)
 
@@ -28,8 +29,11 @@ message(STATUS "kocoasift CUDA Toolkit bin dir: ${CUDAToolkit_BIN_DIR}")
 message(STATUS "kocoasift CUDA Toolkit include dirs: ${CUDAToolkit_INCLUDE_DIRS}")
 message(STATUS "kocoasift CUDA Toolkit library dir: ${CUDAToolkit_LIBRARY_DIR}")
 
+# ================ KocoaSIFT Source Library ================
 add_library(kocoasift
+  src/detect.cpp
   src/frontend.cpp
+  src/parameters.cpp
 )
 
 target_include_directories(kocoasift
@@ -47,14 +51,24 @@ target_link_libraries(kocoasift
 
 target_compile_features(kocoasift PUBLIC cxx_std_17)
 
-add_executable(kocoasift_test_main
+# ================ Tests ================
+add_executable(test_main
   test/test_main.cpp
 )
-
-target_link_libraries(kocoasift_test_main
+target_link_libraries(test_main
   PRIVATE
     kocoasift
 )
 
+add_executable(test_frontend
+  test/test_frontend.cpp
+)
+target_link_libraries(test_frontend
+  PRIVATE
+    kocoasift
+)
+
+# ================ Testing ================
 enable_testing()
-add_test(NAME kocoasift_test_main COMMAND kocoasift_test_main)
+add_test(NAME test_main COMMAND test_main)
+add_test(NAME test_frontend COMMAND test_frontend)
